@@ -138,7 +138,7 @@ def getModelDict(optimizationParams, data):
                                        'TEST_SIZE':100}
                         model = makeModel(hyperparams)
                         metrics = train(model, hyperparams, data)
-                        modelDict[hyperparams] = metrics
+                        modelDict[str(hyperparams)] = metrics
     return modelDict
 
 def findBestModel(modelDict):
