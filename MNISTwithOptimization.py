@@ -153,7 +153,7 @@ def findBestModel(modelDict):
     return bestModel
 
 optimizationParams = {'TRAIN_SIZE':         {'lowerBound':0, 'upperBound':1001, 'step':200}, 
-                      'BATCH_SIZE':         {'lowerBound':10, 'upperBound':101, 'step':10},
+                      'BATCH_SIZE':         {'lowerBound':10, 'upperBound':51, 'step':10},
                       'EPOCHS':             {'lowerBound':10, 'upperBound':31, 'step':10},
                       'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':5, 'step':1},
                       'HIDDEN_LAYER_SIZE':  {'lowerBound':10, 'upperBound':100, 'step':10}}
