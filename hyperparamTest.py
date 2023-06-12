@@ -51,7 +51,7 @@ args = task.connect(args)
 # Get the template task experiment that we want to optimize
 if not args['template_task_id']:
     args['template_task_id'] = Task.get_task(
-        project_name='examples', task_name='MNIST-test-2').id
+        project_name='examples', task_name='MNIST-experiment').id
 
 # Set default queue name for the Training tasks themselves.
 # later can be overridden in the UI
