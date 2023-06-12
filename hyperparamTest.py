@@ -43,14 +43,10 @@ task = Task.init(project_name='Hyper-Parameter Optimization',
 
 # experiment template to optimize in the hyper-parameter optimization
 args = {
-    'template_task_id': None,
+    'template_task_id': '25c48a1304df453aba3c3d5cff59075e',
     'run_as_service': False,
 }
 args = task.connect(args)
-
-# Get the template task experiment that we want to optimize
-if not args['template_task_id']:
-    args['template_task_id'] = '25c48a1304df453aba3c3d5cff59075e'
 
 # Set default queue name for the Training tasks themselves.
 # later can be overridden in the UI
