@@ -147,16 +147,16 @@ def findBestModel(modelDict):
     for model in modelDict:
         loss = modelDict[model][0]
         accuracy = modelDict[model][1]
-        if accuracy >= bestAccuracy:
+        if accuracy > bestAccuracy:
             bestAccuracy = accuracy
             bestModel = model
     return bestModel
 
-optimizationParams = {'TRAIN_SIZE':         {'lowerBound':50, 'upperBound':1001, 'step':50}, 
+optimizationParams = {'TRAIN_SIZE':         {'lowerBound':0, 'upperBound':1001, 'step':200}, 
                       'BATCH_SIZE':         {'lowerBound':10, 'upperBound':101, 'step':10},
-                      'EPOCHS':             {'lowerBound':30, 'upperBound':31, 'step':1},
-                      'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':2, 'step':1},
-                      'HIDDEN_LAYER_SIZE':  {'lowerBound':64, 'upperBound':65, 'step':1}}
+                      'EPOCHS':             {'lowerBound':10, 'upperBound':31, 'step':10},
+                      'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':5, 'step':1},
+                      'HIDDEN_LAYER_SIZE':  {'lowerBound':10, 'upperBound':100, 'step':10}}
 
 modelDict = getModelDict(optimizationParams, data)
 bestModel = findBestModel(modelDict)
