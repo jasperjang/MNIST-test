@@ -48,10 +48,6 @@ args = {
 }
 args = task.connect(args)
 
-# Set default queue name for the Training tasks themselves.
-# later can be overridden in the UI
-execution_queue = 'ml-universal-pip'
-
 # Example use case:
 an_optimizer = HyperParameterOptimizer(
     # This is the experiment we want to optimize
@@ -63,23 +59,23 @@ an_optimizer = HyperParameterOptimizer(
     # If you have `argparse` for example, then arguments will appear under the "Args" section,
     # and you should instead pass "Args/batch_size"
     hyper_parameters=[
-        UniformIntegerParameterRange('hyperparameters/TRAIN_SIZE', min_value=50, max_value=1000, step_size=50),
+        UniformIntegerParameterRange('hyperparameters/TRAIN_SIZE', min_value=0, max_value=1000, step_size=100),
     ],
     # this is the objective metric we want to maximize/minimize
-    objective_metric_title='epoch_accuracy',
-    objective_metric_series='epoch_accuracy',
+    objective_metric_title='test_data/test_accuracy',
+    objective_metric_series='test_data/test_accuracy',
     # now we decide if we want to maximize it or minimize it (accuracy we maximize)
     objective_metric_sign='max',
     # let us limit the number of concurrent experiments,
     # this in turn will make sure we do dont bombard the scheduler with experiments.
     # if we have an auto-scaler connected, this, by proxy, will limit the number of machine
-    max_number_of_concurrent_tasks=2,
+    max_number_of_concurrent_tasks=10,
     # this is the optimizer class (actually doing the optimization)
     # Currently, we can choose from GridSearch, RandomSearch or OptimizerBOHB (Bayesian optimization Hyper-Band)
     # more are coming soon...
     optimizer_class=aSearchStrategy,
     # Select an execution queue to schedule the experiments for execution
-    execution_queue=execution_queue,
+    execution_queue='ml-universal-pip',
     # If specified all Tasks created by the HPO process will be created under the `spawned_project` project
     spawn_project=None,  # 'HPO spawn project',
     # If specified only the top K performing Tasks will be kept, the others will be automatically archived

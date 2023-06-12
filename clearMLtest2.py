@@ -115,4 +115,12 @@ def custom_learning_rate(epoch, lrate):
 	return hyperparams['LEARNING_RATE_COEFF']*lrate
  
 lrs_callback = LearningRateScheduler(custom_learning_rate)
-model.fit(training_images, training_labels, validation_data=(validation_images, validation_labels), epochs=hyperparams['EPOCHS'], shuffle=True, batch_size=hyperparams['BATCH_SIZE'], callbacks=[tensorboard_callback,lrs_callback])
+model.fit(training_images, training_labels, 
+          validation_data=(validation_images, validation_labels), 
+          epochs=hyperparams['EPOCHS'], shuffle=True, 
+          batch_size=hyperparams['BATCH_SIZE'], 
+          callbacks=[tensorboard_callback,lrs_callback])
+
+metrics = model.evaluate(validation_images, validation_labels, verbose=0)
+
+task.connect({'test_loss':metrics[0], 'test_accuracy':metrics[1]}, name='test_data')
