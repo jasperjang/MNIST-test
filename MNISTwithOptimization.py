@@ -152,7 +152,7 @@ def findBestModel(modelDict):
             bestModel = model
     return bestModel
 
-optimizationParams = {'TRAIN_SIZE':         {'lowerBound':200, 'upperBound':201, 'step':1}, 
+optimizationParams = {'TRAIN_SIZE':         {'lowerBound':50, 'upperBound':201, 'step':50}, 
                       'BATCH_SIZE':         {'lowerBound':50, 'upperBound':51, 'step':1},
                       'EPOCHS':             {'lowerBound':30, 'upperBound':31, 'step':1},
                       'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':2, 'step':1},
@@ -160,4 +160,4 @@ optimizationParams = {'TRAIN_SIZE':         {'lowerBound':200, 'upperBound':201,
 
 modelDict = getModelDict(optimizationParams, data)
 bestModel = findBestModel(modelDict)
-print('Found best model! --> f"{bestModel}"')
+print(f'Found best model! --> {bestModel}')
