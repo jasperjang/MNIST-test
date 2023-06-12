@@ -47,6 +47,8 @@ number_of_classes = 10
 training_labels = np_utils.to_categorical(training_labels, number_of_classes)
 validation_labels = np_utils.to_categorical(validation_labels, number_of_classes)
 
+data = (training_images, training_labels, validation_images, validation_labels)
+
 # Define the architecture of the neural network model
 
 def makeModel(params):
@@ -90,27 +92,27 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram
 def custom_learning_rate(params, lrate):
 	return params['LEARNING_RATE_COEFF']*lrate
  
-def train(model, params):
+def train(model, params, data):
 
     # This limits the amount of data we use from each of the training and test sets to 
     # the amount requested by the parameters provided for you to edit.
-
-    training_images = training_images[0:params['TRAIN_SIZE']]
-    training_labels = training_labels[0:params['TRAIN_SIZE']]
-    validation_images = validation_images[0:params['TEST_SIZE']]
-    validation_labels = validation_labels[0:params['TEST_SIZE']]
+    training_images, training_labels, validation_images, validation_labels = data
+    training_ims = training_images[0:params['TRAIN_SIZE']]
+    training_lbls = training_labels[0:params['TRAIN_SIZE']]
+    validation_ims = validation_images[0:params['TEST_SIZE']]
+    validation_lbls = validation_labels[0:params['TEST_SIZE']]
 
     lrs_callback = LearningRateScheduler(custom_learning_rate)
-    model.fit(training_images, training_labels, 
-              validation_data=(validation_images, validation_labels), 
+    model.fit(training_ims, training_lbls, 
+              validation_data=(validation_ims, validation_lbls), 
               epochs=params['EPOCHS'], shuffle=True, 
               batch_size=params['BATCH_SIZE'], 
               callbacks=[tensorboard_callback,lrs_callback])
 
-    metrics = model.evaluate(validation_images, validation_labels, verbose=0)
+    metrics = model.evaluate(validation_ims, validation_lbls, verbose=0)
     return metrics
 
-def getModelDict(optimizationParams):
+def getModelDict(optimizationParams, data):
     modelDict = dict()
     for TRAIN_SIZE in range(optimizationParams['TRAIN_SIZE']['lowerBound'], 
                      optimizationParams['TRAIN_SIZE']['upperBound'],
@@ -135,7 +137,7 @@ def getModelDict(optimizationParams):
                                        'LEARNING_RATE_COEFF':1.1,
                                        'TEST_SIZE':100}
                         model = makeModel(hyperparams)
-                        metrics = train(model, hyperparams)
+                        metrics = train(model, hyperparams, data)
                         modelDict[hyperparams] = metrics
     return modelDict
 
@@ -156,6 +158,6 @@ optimizationParams = {'TRAIN_SIZE':         {'lowerBound':200, 'upperBound':201,
                       'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':2, 'step':1},
                       'HIDDEN_LAYER_SIZE':  {'lowerBound':64, 'upperBound':65, 'step':1}}
 
-modelDict = getModelDict(optimizationParams)
+modelDict = getModelDict(optimizationParams, data)
 bestModel = findBestModel(modelDict)
 print('Found best model! --> f"{bestModel}"')
