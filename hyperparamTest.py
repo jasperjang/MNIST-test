@@ -63,7 +63,7 @@ an_optimizer = HyperParameterOptimizer(
     # If you have `argparse` for example, then arguments will appear under the "Args" section,
     # and you should instead pass "Args/batch_size"
     hyper_parameters=[
-        UniformIntegerParameterRange('hyperparameters/BATCH_SIZE', min_value=1, max_value=100, step_size=1),
+        UniformIntegerParameterRange('hyperparameters/TRAIN_SIZE', min_value=0, max_value=5000, step_size=100),
     ],
     # this is the objective metric we want to maximize/minimize
     objective_metric_title='epoch_accuracy',
