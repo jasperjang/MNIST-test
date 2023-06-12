@@ -50,7 +50,7 @@ args = task.connect(args)
 
 # Set default queue name for the Training tasks themselves.
 # later can be overridden in the UI
-execution_queue = '1xGPU'
+execution_queue = 'ml-universal-pip'
 
 # Example use case:
 an_optimizer = HyperParameterOptimizer(
