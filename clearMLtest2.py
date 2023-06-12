@@ -1,21 +1,12 @@
 from clearml import Task
 
-task = Task.init(project_name='examples', task_name='tensorTest2')
-
-# These parameters control different aspects of the neural network and its training
-
-# These are the parameters you most likely want to explore
-TRAIN_SIZE=20                 # This is the total pool of examples presentable to the network for training
-BATCH_SIZE=5                  # This is the total number of examples the network should look at before making adjustments
-EPOCHS=30                     # This is the number of epochs, i.e. batches of the training set
-
-HIDDEN_LAYERS=1               # The number of densely hidden layers within the neural network 
-HIDDEN_LAYER_SIZE=64          # The number of neurons in each dense layer. For simplicity, each dense layer is set up to be the same
-
-LEARNING_RATE_COEFF=1.30      # Control the rate at which adjustments to weights are made: <1 slows, 1 is default, and >1 exaggerates
-
-# Feel free to change this, if you'd like, but doing so may not be particularly illuminating for this lab
-TEST_SIZE=100                 # This is the number of never-seen-before images used to evaluate the performance after training is complete. Do not lower this number to improve your results. 
+TRAIN_SIZE=200
+BATCH_SIZE=50
+EPOCHS=30
+HIDDEN_LAYERS=1
+HIDDEN_LAYER_SIZE=64
+LEARNING_RATE_COEFF=1.10
+TEST_SIZE=100
 
 hyperparams = {'TRAIN_SIZE':TRAIN_SIZE, 
                'BATCH_SIZE':BATCH_SIZE,
@@ -24,6 +15,8 @@ hyperparams = {'TRAIN_SIZE':TRAIN_SIZE,
                'HIDDEN_LAYER_SIZE':HIDDEN_LAYER_SIZE,
                'LEARNING_RATE_COEFF':LEARNING_RATE_COEFF,
                'TEST_SIZE':TEST_SIZE}
+
+task = Task.init(project_name='examples', task_name=str(hyperparams))
 
 task.connect(hyperparams, name='hyperparameters')
 
@@ -126,3 +119,5 @@ def custom_learning_rate(epoch, lrate):
  
 lrs_callback = LearningRateScheduler(custom_learning_rate)
 model.fit(training_images, training_labels, validation_data=(validation_images, validation_labels), epochs=EPOCHS, shuffle=True, batch_size=BATCH_SIZE, callbacks=[tensorboard_callback,lrs_callback])
+
+task.abort
