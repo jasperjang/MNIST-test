@@ -43,7 +43,7 @@ task = Task.init(project_name='Hyper-Parameter Optimization',
 
 # experiment template to optimize in the hyper-parameter optimization
 args = {
-    'template_task_id': '9189ecd773c44121ba7f87af5db3a64c',
+    'template_task_id': 'f1707a4702524581aba86be4636fa25a',
     'run_as_service': False,
 }
 args = task.connect(args)
