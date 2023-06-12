@@ -43,7 +43,7 @@ task = Task.init(project_name='Hyper-Parameter Optimization',
 
 # experiment template to optimize in the hyper-parameter optimization
 args = {
-    'template_task_id': 'd368301498c549539a2bf691ed5dfd44',
+    'template_task_id': '9189ecd773c44121ba7f87af5db3a64c',
     'run_as_service': False,
 }
 args = task.connect(args)
@@ -63,7 +63,7 @@ an_optimizer = HyperParameterOptimizer(
     # If you have `argparse` for example, then arguments will appear under the "Args" section,
     # and you should instead pass "Args/batch_size"
     hyper_parameters=[
-        UniformIntegerParameterRange('hyperparameters/TRAIN_SIZE', min_value=0, max_value=5000, step_size=100),
+        UniformIntegerParameterRange('hyperparameters/TRAIN_SIZE', min_value=50, max_value=1000, step_size=50),
     ],
     # this is the objective metric we want to maximize/minimize
     objective_metric_title='epoch_accuracy',
