@@ -127,22 +127,16 @@ def getModelDict(optimizationParams):
                     for HIDDEN_LAYER_SIZE in range(optimizationParams['HIDDEN_LAYER_SIZE']['lowerBound'], 
                                      optimizationParams['HIDDEN_LAYER_SIZE']['upperBound'],
                                      optimizationParams['HIDDEN_LAYER_SIZE']['step']):
-                        for LEARNING_RATE_COEFF in range(optimizationParams['LEARNING_RATE_COEFF']['lowerBound'], 
-                                         optimizationParams['LEARNING_RATE_COEFF']['upperBound'],
-                                         optimizationParams['LEARNING_RATE_COEFF']['step']):
-                            for TEST_SIZE in range(optimizationParams['TEST_SIZE']['lowerBound'], 
-                                             optimizationParams['TEST_SIZE']['upperBound'],
-                                             optimizationParams['TEST_SIZE']['step']):
-                                hyperparams = {'TRAIN_SIZE':TRAIN_SIZE, 
-                                               'BATCH_SIZE':BATCH_SIZE,
-                                               'EPOCHS':EPOCHS,
-                                               'HIDDEN_LAYERS':HIDDEN_LAYERS,
-                                               'HIDDEN_LAYER_SIZE':HIDDEN_LAYER_SIZE,
-                                               'LEARNING_RATE_COEFF':LEARNING_RATE_COEFF,
-                                               'TEST_SIZE':TEST_SIZE}
-                                model = makeModel(hyperparams)
-                                metrics = train(model, hyperparams)
-                                modelDict[hyperparams] = metrics
+                        hyperparams = {'TRAIN_SIZE':TRAIN_SIZE, 
+                                       'BATCH_SIZE':BATCH_SIZE,
+                                       'EPOCHS':EPOCHS,
+                                       'HIDDEN_LAYERS':HIDDEN_LAYERS,
+                                       'HIDDEN_LAYER_SIZE':HIDDEN_LAYER_SIZE,
+                                       'LEARNING_RATE_COEFF':1.1,
+                                       'TEST_SIZE':100}
+                        model = makeModel(hyperparams)
+                        metrics = train(model, hyperparams)
+                        modelDict[hyperparams] = metrics
     return modelDict
 
 def findBestModel(modelDict):
@@ -152,16 +146,15 @@ def findBestModel(modelDict):
         loss = modelDict[model][0]
         accuracy = modelDict[model][1]
         if accuracy >= bestAccuracy:
+            bestAccuracy = accuracy
             bestModel = model
-    return model
+    return bestModel
 
 optimizationParams = {'TRAIN_SIZE':         {'lowerBound':200, 'upperBound':201, 'step':1}, 
                       'BATCH_SIZE':         {'lowerBound':50, 'upperBound':51, 'step':1},
                       'EPOCHS':             {'lowerBound':30, 'upperBound':31, 'step':1},
                       'HIDDEN_LAYERS':      {'lowerBound':1, 'upperBound':2, 'step':1},
-                      'HIDDEN_LAYER_SIZE':  {'lowerBound':64, 'upperBound':65, 'step':1},
-                      'LEARNING_RATE_COEFF':{'lowerBound':1.1, 'upperBound':1.2, 'step':.1},
-                      'TEST_SIZE':          {'lowerBound':100, 'upperBound':101, 'step':1}}
+                      'HIDDEN_LAYER_SIZE':  {'lowerBound':64, 'upperBound':65, 'step':1}}
 
 modelDict = getModelDict(optimizationParams)
 bestModel = findBestModel(modelDict)
