@@ -89,8 +89,8 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram
 
 # Fit, a.k.a. train, the model
 
-def custom_learning_rate(params, lrate):
-	return params['LEARNING_RATE_COEFF']*lrate
+def custom_learning_rate(epoch, lrate):
+	return 1.1*lrate
  
 def train(model, params, data):
 
