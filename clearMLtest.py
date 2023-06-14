@@ -132,4 +132,4 @@ for epoch in range(EPOCHS):
     train_loss.reset_states()
     train_accuracy.reset_states()
     test_loss.reset_states()
-    test_accuracy.reset_states()# MNIST-test
+    test_accuracy.reset_states()
