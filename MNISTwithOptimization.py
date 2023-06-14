@@ -152,6 +152,16 @@ def findBestModel(modelDict):
             bestModel = model
     return bestModel
 
+def getOrderedList(modelDict):
+    L = []
+    for params in modelDict:
+        metrics = modelDict[params]
+        loss, accuracy = metrics
+        L.append(f'{accuracy}:{params}')
+    L.sort()
+    L.reverse()
+    return L
+
 optimizationParams = {'TRAIN_SIZE':         {'lowerBound':1000, 'upperBound':1001, 'step':1}, 
                       'BATCH_SIZE':         {'lowerBound':10, 'upperBound':11, 'step':1},
                       'EPOCHS':             {'lowerBound':30, 'upperBound':31, 'step':1},
@@ -159,5 +169,5 @@ optimizationParams = {'TRAIN_SIZE':         {'lowerBound':1000, 'upperBound':100
                       'HIDDEN_LAYER_SIZE':  {'lowerBound':10, 'upperBound':100, 'step':10}}
 
 modelDict = getModelDict(optimizationParams, data)
-bestModel = findBestModel(modelDict)
-print(f'Found best model! --> {bestModel}')
+orderedList = getOrderedList(modelDict)
+print(f'Here are the ordered results: \n{orderedList}')
