@@ -41,15 +41,10 @@ task = Task.init(
 
 # experiment template to optimize in the hyperparameter optimization
 args = {
-    'template_task_id': None,
+    'template_task_id': '4e70128c82644a9b857af56f9b2e3ed3',
     'run_as_service': False,
 }
 args = task.connect(args)
-    
-# Get the template task experiment that we want to optimize
-if not args['template_task_id']:
-    args['template_task_id'] = Task.get_task(
-        project_name='examples', task_name='MNIST-testing').id
 
 # Set default queue name for the Training tasks themselves.
 # later can be overridden in the UI
@@ -92,7 +87,7 @@ an_optimizer = HyperParameterOptimizer(
     save_top_k_tasks_only=10,  # 5,
     # Check the experiments every 12 seconds is way too often, we should probably set it to 5 min,
     # assuming a single experiment is usually hours...
-    pool_period_min=5,
+    pool_period_min=0.2,
     # set the maximum number of jobs to launch for the optimization, default (None) unlimited
     # If OptimizerBOHB is used, it defined the maximum budget in terms of full jobs
     # basically the cumulative number of iterations will not exceed total_max_jobs * max_iteration_per_job
@@ -112,7 +107,7 @@ if args['run_as_service']:
     task.execute_remotely(queue_name='services', exit_process=True)
 
 # report every 12 seconds, this is way too often, but we are testing here 
-an_optimizer.set_report_period(5)
+an_optimizer.set_report_period(0.2)
 # start the optimization process, callback function to be called every time an experiment is completed
 # this function returns immediately
 an_optimizer.start(job_complete_callback=job_complete_callback)
