@@ -18,7 +18,9 @@ hyperparams = {'TRAIN_SIZE':TRAIN_SIZE,
 
 task = Task.init(project_name='examples', task_name=str(hyperparams))
 
-task.connect(hyperparams, name='hyperparameters')
+task.set_parameters_as_dict(hyperparams)
+
+print(task.get_parameters())
 
 # Imports to bring in libraries we need and sometimes give them shorthand aliases 
 import numpy
@@ -48,10 +50,10 @@ from keras.callbacks import LearningRateScheduler
 # This limits the amount of data we use from each of the training and test sets to 
 # the amount requested by the parameters provided for you to edit.
 
-training_images = training_images[0:hyperparams['TRAIN_SIZE']]
-training_labels = training_labels[0:hyperparams['TRAIN_SIZE']]
-validation_images = validation_images[0:hyperparams['TEST_SIZE']]
-validation_labels = validation_labels[0:hyperparams['TEST_SIZE']]
+training_images = training_images[0:int(task.get_parameters()['General/TRAIN_SIZE'])]
+training_labels = training_labels[0:int(task.get_parameters()['General/TRAIN_SIZE'])]
+validation_images = validation_images[0:int(task.get_parameters()['General/TEST_SIZE'])]
+validation_labels = validation_labels[0:int(task.get_parameters()['General/TEST_SIZE'])]
 
 # Normalize inputs from 0-255 to 0.0-1.0
 # In other words divide every pixel by 255 so the range is from 0-1 instead of 0-255
@@ -85,8 +87,8 @@ model.add(Flatten())
 # A dense layer is trhe basic fully connected later. 
 # "relu" is a "rectified linear unit", which is a long way of saying it makes anything negative into a 0
 # There isn't such a thing as a negative color, so inhibition (negative weight) isn't likely to be helpful.
-for dense_layer in range (hyperparams['HIDDEN_LAYERS']):
-  model.add(Dense(hyperparams['HIDDEN_LAYER_SIZE'], activation='relu'))
+for dense_layer in range (int(task.get_parameters()['General/HIDDEN_LAYERS'])):
+  model.add(Dense(int(task.get_parameters()['General/HIDDEN_LAYER_SIZE']), activation='relu'))
 
 # Add output layer
 # The output layer is "softmax", which basically means that it takes the 
@@ -112,13 +114,13 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram
 # Fit, a.k.a. train, the model
 
 def custom_learning_rate(epoch, lrate):
-	return hyperparams['LEARNING_RATE_COEFF']*lrate
+	return float(task.get_parameters()['General/LEARNING_RATE_COEFF'])*lrate
  
 lrs_callback = LearningRateScheduler(custom_learning_rate)
 model.fit(training_images, training_labels, 
           validation_data=(validation_images, validation_labels), 
-          epochs=hyperparams['EPOCHS'], shuffle=True, 
-          batch_size=hyperparams['BATCH_SIZE'], 
+          epochs=int(task.get_parameters()['General/EPOCHS']), shuffle=True, 
+          batch_size=int(task.get_parameters()['General/BATCH_SIZE']), 
           callbacks=[tensorboard_callback,lrs_callback])
 
 metrics = model.evaluate(validation_images, validation_labels, verbose=0)
