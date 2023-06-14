@@ -61,10 +61,7 @@ an_optimizer = HyperParameterOptimizer(
     # If you have `argparse` for example, then arguments will appear under the "Args" section,
     # and you should instead pass "Args/batch_size"
     hyper_parameters=[
-        UniformIntegerParameterRange('General/layer_1', min_value=128, max_value=512, step_size=128),
-        UniformIntegerParameterRange('General/layer_2', min_value=128, max_value=512, step_size=128),
-        DiscreteParameterRange('General/batch_size', values=[96, 128, 160]),
-        DiscreteParameterRange('General/epochs', values=[30]),
+        UniformIntegerParameterRange('General/HIDDEN_LAYERS', min_value=1, max_value=5, step_size=1),
     ],
     # this is the objective metric we want to maximize/minimize
     objective_metric_title='epoch_accuracy',
