@@ -1,20 +1,12 @@
 from clearml import Task
 
-TRAIN_SIZE=1000
-BATCH_SIZE=10
-EPOCHS=30
-HIDDEN_LAYERS=1
-HIDDEN_LAYER_SIZE=90
-LEARNING_RATE_COEFF=1.10
-TEST_SIZE=100
-
-hyperparams = {'TRAIN_SIZE':TRAIN_SIZE, 
-               'BATCH_SIZE':BATCH_SIZE,
-               'EPOCHS':EPOCHS,
-               'HIDDEN_LAYERS':HIDDEN_LAYERS,
-               'HIDDEN_LAYER_SIZE':HIDDEN_LAYER_SIZE,
-               'LEARNING_RATE_COEFF':LEARNING_RATE_COEFF,
-               'TEST_SIZE':TEST_SIZE}
+hyperparams = {'TRAIN_SIZE':1000, 
+               'BATCH_SIZE':10,
+               'EPOCHS':30,
+               'HIDDEN_LAYERS':1,
+               'HIDDEN_LAYER_SIZE':90,
+               'LEARNING_RATE_COEFF':1.10,
+               'TEST_SIZE':100}
 
 task = Task.init(project_name='examples', task_name=str(hyperparams))
 
