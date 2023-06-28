@@ -1,135 +1,120 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-import os
-from tempfile import gettempdir
-
-import tensorflow as tf
-
-from keras.layers import Dense, Flatten, Conv2D
-from keras import Model
-
 from clearml import Task
 
+hyperparams = {'TRAIN_SIZE':1000, 
+               'BATCH_SIZE':10,
+               'EPOCHS':30,
+               'HIDDEN_LAYERS':1,
+               'HIDDEN_LAYER_SIZE':90,
+               'LEARNING_RATE_COEFF':1.10,
+               'TEST_SIZE':100}
 
-# Connecting ClearML with the current process,
-# from here on everything is logged automatically
-task = Task.init(project_name='examples', task_name='TensorFlow v2 MNIST with summaries')
+task = Task.init(project_name='examples', task_name=str(hyperparams))
 
+task.set_parameters_as_dict(hyperparams)
 
-# Load and prepare the MNIST dataset.
-mnist = tf.keras.datasets.mnist
+print(task.get_parameters())
 
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train, x_test = x_train / 255.0, x_test / 255.0
+# Imports to bring in libraries we need and sometimes give them shorthand aliases 
+import numpy
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import tensorflow_docs as tfdocs
+import tensorflow_docs.modeling
+import tensorflow_docs.plots
+import tensorflow as tf
+import datetime
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Flatten
+from keras.layers.convolutional import Conv2D
+from keras.layers.convolutional import MaxPooling2D
+from keras.optimizers import Adam
+from keras.utils import np_utils
+from keras.callbacks import LearningRateScheduler
 
-# Add a channels dimension
-x_train = x_train[..., tf.newaxis].astype('float32')
-x_test = x_test[..., tf.newaxis].astype('float32')
+# load data
+# This uses a method, e.g. code, provided with the data set
+# It automatically loads both training and validation <image, label> tuples
+(training_images, training_labels), (validation_images, validation_labels) = mnist.load_data()
 
-# Use tf.data to batch and shuffle the dataset
-train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(10000).batch(32)
-test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
+# This limits the amount of data we use from each of the training and test sets to 
+# the amount requested by the parameters provided for you to edit.
 
+training_images = training_images[0:int(task.get_parameters()['General/TRAIN_SIZE'])]
+training_labels = training_labels[0:int(task.get_parameters()['General/TRAIN_SIZE'])]
+validation_images = validation_images[0:int(task.get_parameters()['General/TEST_SIZE'])]
+validation_labels = validation_labels[0:int(task.get_parameters()['General/TEST_SIZE'])]
 
-# Build the tf.keras model using the Keras model subclassing API
-class MyModel(Model):
-    def __init__(self):
-        super(MyModel, self).__init__()
-        self.conv1 = Conv2D(32, 3, activation='relu', dtype=tf.float32)
-        self.flatten = Flatten()
-        self.d1 = Dense(128, activation='relu', dtype=tf.float32)
-        self.d2 = Dense(10, activation='softmax', dtype=tf.float32)
+# Normalize inputs from 0-255 to 0.0-1.0
+# In other words divide every pixel by 255 so the range is from 0-1 instead of 0-255
+# This is because the neural netowrk expects inputs to be in the range from 0-1
+training_images = training_images / 255
+validation_images = validation_images / 255
 
-    def call(self, x):
-        x = self.conv1(x)
-        x = self.flatten(x)
-        x = self.d1(x)
-        return self.d2(x)
+# Convert numerical labels to "One-Hot Encoding"
+# This means we encode each category's values as a separate boolean output variable
+# So,instead of having one output encoded as 0:0/255, 1:1/255, 2:2/255, etc, 
+# each category gets a different output, so for example, consider 0, 1, and 2:
+# 0: {1, 0, 0}
+# 1: {0, 1, 0}
+# 2: {0, 0, 1} 
+# This is important to do because There is no numerical relationship between the 
+# categories. In other word, a 1.5 wouldn't mean half "1" and half "2". It would
+# just be hard to interpret and not good for training. 
+number_of_classes = 10
+training_labels = np_utils.to_categorical(training_labels, number_of_classes)
+validation_labels = np_utils.to_categorical(validation_labels, number_of_classes)
 
+# Define the architecture of the neural network model
 
-# Create an instance of the model
-model = MyModel()
+# Define the model sequentially, layer by layer
+model = Sequential()
 
-# Choose an optimizer and loss function for training
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
-optimizer = tf.keras.optimizers.Adam()
+# Add input layer, flattening out the 28x28 2D image into a 1D vector on its way into the network
+model.add(Flatten())
 
-# Select metrics to measure the loss and the accuracy of the model.
-# These metrics accumulate the values over epochs and then print the overall result.
-train_loss = tf.keras.metrics.Mean(name='train_loss', dtype=tf.float32)
-train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+# Add hidden layer(s)
+# A dense layer is trhe basic fully connected later. 
+# "relu" is a "rectified linear unit", which is a long way of saying it makes anything negative into a 0
+# There isn't such a thing as a negative color, so inhibition (negative weight) isn't likely to be helpful.
+for dense_layer in range (int(task.get_parameters()['General/HIDDEN_LAYERS'])):
+  model.add(Dense(int(task.get_parameters()['General/HIDDEN_LAYER_SIZE']), activation='relu'))
 
-test_loss = tf.keras.metrics.Mean(name='test_loss', dtype=tf.float32)
-test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+# Add output layer
+# The output layer is "softmax", which basically means that it takes the 
+# various outputs and makes them sum up to 1.0, so that they can be interpreted sort of like probabilities
+# rather than us having to look at the whole set to interpret how much stronger or weaker one output is than others
+model.add(Dense(number_of_classes, activation='softmax'))
 
+# Compile model
+# This is, in some ways, like compiling a program. It takes the model above from a definiton to a usable instance
 
-# Use tf.GradientTape to train the model
-@tf.function
-def train_step(images, labels):
-    with tf.GradientTape() as tape:
-        predictions = model(images)
-        loss = loss_object(labels, predictions)
-    gradients = tape.gradient(loss, model.trainable_variables)
-    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+# Categorical cross-entropy is a way of measuring error in situations where, as is the case with one-hot encoding, outputs are boolean and indicate membership in a single category
+# The "adam" optimizer is a form of gradient descent, i.e. a way for the network to assign blame for error and adjust weights by back propogation
+# Accuracy is a metric that measures the correctness of the categorization
+model.compile(loss='categorical_crossentropy', optimizer=Adam(), metrics=['accuracy'])
 
-    train_loss(loss)
-    train_accuracy(labels, predictions)
+# Create a log directory where the neural network can store data for later visualization by TensorBoard
+log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
+# Set up "callback" so that model.fit feeds data into the log diretory for TensorBoard as it trains
+# Note that this initializes the callback with the log directory created above and will log with each epoch, i.e. histogram_freq = 1
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-# Test the model
-@tf.function
-def test_step(images, labels):
-    predictions = model(images)
-    t_loss = loss_object(labels, predictions)
+# Fit, a.k.a. train, the model
 
-    test_loss(t_loss)
-    test_accuracy(labels, predictions)
+def custom_learning_rate(epoch, lrate):
+	return float(task.get_parameters()['General/LEARNING_RATE_COEFF'])*lrate
+ 
+lrs_callback = LearningRateScheduler(custom_learning_rate)
+model.fit(training_images, training_labels, 
+          validation_data=(validation_images, validation_labels), 
+          epochs=int(task.get_parameters()['General/EPOCHS']), shuffle=True, 
+          batch_size=int(task.get_parameters()['General/BATCH_SIZE']), 
+          callbacks=[tensorboard_callback,lrs_callback])
 
+metrics = model.evaluate(validation_images, validation_labels, verbose=0)
 
-# Set up summary writers to write the summaries to disk in a different logs directory
-train_log_dir = os.path.join(gettempdir(), 'logs', 'gradient_tape', 'train')
-test_log_dir = os.path.join(gettempdir(), 'logs', 'gradient_tape', 'test')
-train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-test_summary_writer = tf.summary.create_file_writer(test_log_dir)
-
-# Set up checkpoints manager
-ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=optimizer, net=model)
-manager = tf.train.CheckpointManager(ckpt, os.path.join(gettempdir(), 'tf_ckpts'), max_to_keep=3)
-ckpt.restore(manager.latest_checkpoint)
-if manager.latest_checkpoint:
-    print("Restored from {}".format(manager.latest_checkpoint))
-else:
-    print("Initializing from scratch.")
-
-# Start training
-EPOCHS = 5
-for epoch in range(EPOCHS):
-    for images, labels in train_ds:
-        train_step(images, labels)
-        with train_summary_writer.as_default():
-            tf.summary.scalar('loss', train_loss.result(), step=epoch)
-            tf.summary.scalar('accuracy', train_accuracy.result(), step=epoch)
-
-    ckpt.step.assign_add(1)
-    if int(ckpt.step) % 1 == 0:
-        save_path = manager.save()
-        print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
-
-    for test_images, test_labels in test_ds:
-        test_step(test_images, test_labels)
-        with test_summary_writer.as_default():
-            tf.summary.scalar('loss', test_loss.result(), step=epoch)
-            tf.summary.scalar('accuracy', test_accuracy.result(), step=epoch)
-
-    template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
-    print(template.format(epoch+1,
-                          train_loss.result(),
-                          train_accuracy.result()*100,
-                          test_loss.result(),
-                          test_accuracy.result()*100))
-
-    # Reset the metrics for the next epoch
-    train_loss.reset_states()
-    train_accuracy.reset_states()
-    test_loss.reset_states()
-    test_accuracy.reset_states()
+task.connect({'test_loss':metrics[0], 'test_accuracy':metrics[1]}, name='test_data')
