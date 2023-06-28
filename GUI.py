@@ -6,94 +6,108 @@ from clenv.cli.queue.queue_manager import QueueManager
 from git import Repo
 from os.path import isfile
 from config_manager import ConfigManager
+import webbrowser as wb
 
 ################################################################################
-######                         Helper Functions                            #####
+######                         Helper Functions                           ######
 ################################################################################
 
 # returns readable list of available queues
-def getQueueList():
-    queueManager = QueueManager()
-    availableQueues = queueManager.get_available_queues()
-    queueList = []
-    for queue in availableQueues:
-        queueList.append(f"{queue['name']} - idle workers: {[worker['name'] for worker in queue['workers'] if worker['task'] is None]} - total workers: {len(queue['workers'])}")
-    return queueList
+def get_queue_list():
+    queue_manager = QueueManager()
+    available_queues = queue_manager.get_available_queues()
+    queue_list = []
+    for queue in available_queues:
+        queue_list.append(f"{queue['name']} - idle workers: {[worker['name'] for worker in queue['workers'] if worker['task'] is None]} - total workers: {len(queue['workers'])}")
+    return queue_list
 
-# returns queue name, number of idle workers, and total number of workers from the queueList format above
-def getQueueInfo(queueListItem):
-    L = queueListItem.split(' ')
+# returns queue name, number of idle workers, and total number of workers from the queue_list format above
+def get_queue_info(queue_list_item):
+    L = queue_list_item.split(' ')
     queue = L[0]
-    numIdleWorkers = len(L[4])
-    totalWorkers = int(L[8])
-    return queue, numIdleWorkers, totalWorkers
+    num_idle_workers = len(L[4])
+    total_workers = int(L[8])
+    return queue, num_idle_workers, total_workers
 
 # checks if any values in the dictionary are empty
-def checkBlankOptions(values):
-    if (values['queueList'] == '' or
-        values['taskTypes'] == '' or
-        values['taskName'] == '' or
+def check_blank_options(values):
+    if (values['queue_list'] == '' or
+        values['task_types'] == '' or
+        values['task_name'] == '' or
         len(values['path']) <= 2):
         return True
     return False
 
-windowActivity = {'main':False,
+window_activity = {'main':False,
                   'error':False,
-                  'newConfig':False,
-                  'actionSuccessful':False}
+                  'new_config':False,
+                  'action_successful':False}
 
 # sets active window to the inputted window name
-def setActiveWindow(windowName):
-    for window in windowActivity:
-        if window == windowName:
-            windowActivity[window] = True
+def set_active_window(window_name):
+    for window in window_activity:
+        if window == window_name:
+            window_activity[window] = True
         else:
-            windowActivity[window] = False
+            window_activity[window] = False
 
 # returns just the profile names from the list of non active profiles
-def getNonActiveProfileNames(nonActiveProfiles):
-    nonActiveProfileNames = []
-    for profile in nonActiveProfiles:
-        nonActiveProfileNames.append(profile['profile_name'])
-    return nonActiveProfileNames
+def get_non_active_profile_names(non_active_profiles):
+    non_active_profile_names = []
+    for profile in non_active_profiles:
+        non_active_profile_names.append(profile['profile_name'])
+    return non_active_profile_names
 
 # returns list of profile names
-def getProfileList(activeProfile, nonActiveProfiles):
-    profileList = [activeProfile['profile_name']]
-    for profile in nonActiveProfiles:
-        profileList.append(profile["profile_name"])
-    return profileList
+def get_profile_list(active_profile, non_active_profiles):
+    profile_list = [active_profile['profile_name']]
+    for profile in non_active_profiles:
+        profile_list.append(profile["profile_name"])
+    return profile_list
 
 # returns string of profiles from the list of profile names
-def getProfileString(profileList):
-    profileString = ''
-    for profileIndex in range(len(profileList)):
-        if profileIndex == 0:
-            profileString += f'{profileList[0]} <active>\n'
+def get_profile_string(profile_list):
+    profile_string = ''
+    for profile_index in range(len(profile_list)):
+        if profile_index == 0:
+            profile_string += f'{profile_list[0]} <active>\n'
         else:
-            profileString += f'{profileList[profileIndex]}\n'
-    return profileString
+            profile_string += f'{profile_list[profile_index]}\n'
+    return profile_string
 
 # creates an action success window
-def actionSuccess():
-    mainWindow['configOptions'].update('')
-    actionSuccessfulLayout =    [
+def action_success():
+    main_window['config_options'].update('')
+    action_successful_layout =    [
                                     [sg.Text('Action completed successfully!')]
                                 ]
-    actionSuccessfulWindow = sg.Window('', actionSuccessfulLayout, modal=True)
-    setActiveWindow('actionSuccessful')
-    return actionSuccessfulWindow
+    action_successful_window = sg.Window('', action_successful_layout, modal=True)
+    set_active_window('action_successful')
+    return action_successful_window
 
-# gets direct
-def getFileDir(path):
-    dirPath = ''
-    path = path.split('/')
-    for i in range(len(path)-1):
-        dirPath += f'{path[i]}/'
-    return dirPath
+# creates an error window
+def create_error_window(message):
+    error_layout =  [
+        [sg.Text(f'Error: {message}', key='error_message')],
+        [sg.Button('Back')]
+                    ]
+    error_window = sg.Window('Error', error_layout, modal=True)
+    set_active_window('error')
+    return error_window
+
+# gets directory of given file path
+def get_directory_path(path):
+    dir_path = ''
+    path_list = path.split('/')
+    for item in path_list:
+        if item == '':
+            path_list.remove(item)
+    for i in range(len(path_list)-1):
+        dir_path += f'/{path_list[i]}'
+    return dir_path
 
 ################################################################################
-######                          Initialization                             #####
+######                          Initialization                            ######
 ################################################################################
 
 sg.LOOK_AND_FEEL_TABLE['clearML'] = {'BACKGROUND': '#1A1E2C',
@@ -108,8 +122,8 @@ sg.LOOK_AND_FEEL_TABLE['clearML'] = {'BACKGROUND': '#1A1E2C',
 
 sg.theme('clearML')
 
-queueList = getQueueList()
-taskTypes = ["training",
+queue_list = get_queue_list()
+task_types = ["training",
              "testing",
              "inference",
              "data_processing",
@@ -124,289 +138,269 @@ task_id = ''
 queue = ''
 URL = ''
 
-configManager = ConfigManager('~/.clenv-config-index.json')
-activeProfile = configManager.get_active_profile()[0]
-nonActiveProfiles = configManager.get_non_active_profiles()
-nonActiveProfileNames = getNonActiveProfileNames(nonActiveProfiles)
-profileList = getProfileList(activeProfile, nonActiveProfiles)
-profileString = getProfileString(profileList)
+config_manager = ConfigManager('~/.clenv-config-index.json')
+active_profile = config_manager.get_active_profile()[0]
+non_active_profiles = config_manager.get_non_active_profiles()
+non_active_profile_names = get_non_active_profile_names(non_active_profiles)
+profile_list = get_profile_list(active_profile, non_active_profiles)
+profile_string = get_profile_string(profile_list)
 
 # Secondary layouts
-mainLayout =    [
-                    [sg.Button('Task Execution', font='Ariel 18', key='taskExec')],
-                    [sg.Button('Profile Configuration', font='Ariel 18', key='config')]
+main_layout =    [
+    [sg.Button('    Task Execution    ', font='Ariel 18', key='task_exec')],
+    [sg.Button('Profile Configuration', font='Ariel 18', key='config')]
                 ]
 
-execLayout =    [
-                    [sg.Text('Please choose a queue to execute the task')],
-                    [sg.OptionMenu(queueList, key='queueList')],
-                    [sg.Text('')],
-                    [sg.Text('Please choose a task type')],
-                    [sg.OptionMenu(taskTypes, key='taskTypes')],
-                    [sg.Text('')],
-                    [sg.Text('Please enter a task name')],
-                    [sg.InputText('', key='taskName')],
-                    [sg.Text('')],
-                    [sg.Text('Please enter a script path')],
-                    [sg.InputText('./', key='path')],
-                    [sg.Button('Confirm', key='execConfirm'), 
-                     sg.Button('Back', key='execBack')]
+exec_layout =    [
+    [sg.Text('Please choose a queue to execute the task')],
+    [sg.OptionMenu(queue_list, key='queue_list')],
+    [sg.Text('')],
+    [sg.Text('Please choose a task type')],
+    [sg.OptionMenu(task_types, key='task_types')],
+    [sg.Text('')],
+    [sg.Text('Please enter a task name')],
+    [sg.InputText('', key='task_name')],
+    [sg.Text('')],
+    [sg.Text('Please enter a script path')],
+    [sg.InputText('/', key='path')],
+    [sg.Button('Confirm', key='exec_confirm'), 
+     sg.Button('Back', key='exec_back')]
                 ]
 
-execCompleteLayout =    [
-                            [sg.Text(f"New task created id={task_id}", key='execCompleteT1')],
-                            [sg.Text(f"Task id={task_id} sent for execution on queue {queue}", key='execCompleteT2')],
-                            [sg.Text("Execution log at:")],
-                            [sg.InputText(f'{URL}', key='execCompleteURL')],
-                            [sg.Button('Back', key='execCompleteBack')]
+exec_complete_layout =    [
+    [sg.Text(f"New task created id={task_id}", key='exec_complete_text1')],
+    [sg.Text(f"Task id={task_id} sent for execution on queue {queue}", key='exec_complete_text2')],
+    [sg.Text("Execution log at:")],
+    [sg.Button('Navigate to project on clearML', key='exec_complete_URL')],
+    [sg.Button('Back', key='exec_complete_back')]
                         ]
 
-configLayout =  [
-                    [sg.Text('Profile Configuration Options:')],
-                    [sg.OptionMenu(['Checkout a Profile',
-                                    'Create a Profile',
-                                    'Delete a Profile',
-                                    'List of Profiles',
-                                    'Rename a Profile',
-                                    'Configure API Path'], key='configOptions')],
-                    [sg.Button('Confirm', key='configConfirm'), 
-                     sg.Button('Back', key='configBack')]
+config_layout =  [
+    [sg.Text('Profile Configuration Options:')],
+    [sg.OptionMenu(['Checkout a Profile',
+                    'Create a Profile',
+                    'Delete a Profile',
+                    'List of Profiles',
+                    'Rename a Profile',
+                    'Configure API Path'], key='config_options')],
+    [sg.Button('Confirm', key='config_confirm'), 
+     sg.Button('Back', key='config_back')]
                 ]
 
-configCheckoutLayout =  [
-                            [sg.Text('Select a profile to checkout:')],
-                            [sg.Text(f'Active Profile: {activeProfile}', key='checkoutAP')],
-                            [sg.OptionMenu(nonActiveProfiles, key='checkoutNAP')],
-                            [sg.Button('Confirm', key='configCheckoutConfirm'), 
-                             sg.Button('Back', key='configCheckoutBack')]
+config_checkout_layout =  [
+    [sg.Text('Select a profile to checkout:')],
+    [sg.Text(f'Active Profile: {active_profile}', key='checkout_active_profile')],
+    [sg.OptionMenu(non_active_profiles, key='checkout_non_active_profiles')],
+    [sg.Button('Confirm', key='config_checkout_confirm'), 
+     sg.Button('Back', key='config_checkout_back')]
                         ]
 
-configCreateLayout =    [
-                            [sg.Text('Enter a new profile name:')],
-                            [sg.InputText('', key='newProfileName')],
-                            [sg.Button('Confirm', key='configCreateConfirm'),
-                             sg.Button('Back', key='configCreateBack')]
+config_create_layout =    [
+    [sg.Text('Enter a new profile name:')],
+    [sg.InputText('', key='new_profile_name')],
+    [sg.Button('Confirm', key='config_create_confirm'),
+     sg.Button('Back', key='config_create_back')]
                         ]
 
-configDeleteLayout =    [
-                            [sg.Text('Select a profile to delete:')],
-                            [sg.OptionMenu(nonActiveProfiles, key='deleteNAP')],
-                            [sg.Button('Confirm', key='configDeleteConfirm'),
-                             sg.Button('Back', key='configDeleteBack')]
+config_delete_layout =    [
+    [sg.Text('Select a profile to delete:')],
+    [sg.OptionMenu(non_active_profiles, key='delete_non_active_profiles')],
+    [sg.Button('Confirm', key='config_delete_confirm'),
+     sg.Button('Back', key='config_delete_back')]
                         ]
 
-configListLayout =  [
-                        [sg.Text('List of profiles:')],
-                        [sg.Text(profileString, key='profileList')],
-                        [sg.Button('Back', key='configListBack')]
+config_list_layout =  [
+    [sg.Text('List of profiles:')],
+    [sg.Text(profile_string, key='profile_list')],
+    [sg.Button('Back', key='config_list_back')]
                     ]
 
-configRenameLayout =    [
-                            [sg.Text('Select a profile to rename:')],
-                            [sg.OptionMenu(profileList, key='profileListMenu')],
-                            [sg.Text('')],
-                            [sg.Text('Enter a new name:')],
-                            [sg.InputText('', key='profileRename')],
-                            [sg.Button('Confirm', key='configRenameConfirm'),
-                             sg.Button('Back', key='configRenameBack')]
+config_rename_layout =    [
+    [sg.Text('Select a profile to rename:')],
+    [sg.OptionMenu(profile_list, key='profile_list_menu')],
+    [sg.Text('')],
+    [sg.Text('Enter a new name:')],
+    [sg.InputText('', key='profile_rename')],
+    [sg.Button('Confirm', key='config_rename_confirm'),
+     sg.Button('Back', key='config_rename_back')]
                         ]
 
-configConfigureLayout =     [
-                                [sg.Text('Select a profile to reconfigure:')],
-                                [sg.OptionMenu(profileList, key='profileToConfig')],
-                                [sg.Text('')],
-                                [sg.Text('Enter a multiline configuration below:')],
-                                [sg.Text('''
+config_configure_layout = [
+    [sg.Text('Select a profile to reconfigure:')],
+    [sg.OptionMenu(profile_list, key='profile_to_config')],
+    [sg.Text('')],
+    [sg.Text('Enter a multiline configuration below:')],
+    [sg.Text('''
 This can be found by navigating to the clearML website, 
 clicking the button in the top right corner, then 
 settings > workspace > create new credentials
-                                         ''')],
-                                [sg.Multiline('', key='multilineConfig', size=(60,9))],
-                                [sg.Button('Confirm', key='configConfigureConfirm'),
-                                 sg.Button('Back', key='configConfigureBack')]
-                            ]
+             ''')],
+    [sg.Multiline('', key='multiline_config', size=(60,9))],
+    [sg.Button('Confirm', key='config_configure_confirm'),
+     sg.Button('Back', key='config_configure_back')]
+                        ]
 
 # Main layout
 layout =    [
-                [sg.Text('')],
-                [sg.Image('./logo.png')],
-                [sg.Text('')],
-                [sg.Column(mainLayout, key='mainLayout'), 
-                 sg.Column(execLayout, visible=False, key='execLayout'), 
-                 sg.Column(execCompleteLayout, visible=False, key='execCompleteLayout'),
-                 sg.Column(configLayout, visible=False, key='configLayout'),
-                 sg.Column(configCheckoutLayout, visible=False, key='configCheckoutLayout'),
-                 sg.Column(configCreateLayout, visible=False, key='configCreateLayout'),
-                 sg.Column(configDeleteLayout, visible=False, key='configDeleteLayout'),
-                 sg.Column(configListLayout, visible=False, key='configListLayout'),
-                 sg.Column(configRenameLayout, visible=False, key='configRenameLayout'),
-                 sg.Column(configConfigureLayout, visible=False, key='configConfigureLayout')]
+    [sg.Text('')],
+    [sg.Image('./logo.png')],
+    [sg.Text('')],
+    [sg.Column(main_layout, key='main_layout'), 
+     sg.Column(exec_layout, visible=False, key='exec_layout'), 
+     sg.Column(exec_complete_layout, visible=False, key='exec_complete_layout'),
+     sg.Column(config_layout, visible=False, key='config_layout'),
+     sg.Column(config_checkout_layout, visible=False, key='config_checkout_layout'),
+     sg.Column(config_create_layout, visible=False, key='config_create_layout'),
+     sg.Column(config_delete_layout, visible=False, key='config_delete_layout'),
+     sg.Column(config_list_layout, visible=False, key='config_list_layout'),
+     sg.Column(config_rename_layout, visible=False, key='config_rename_layout'),
+     sg.Column(config_configure_layout, visible=False, key='config_configure_layout')]
             ]
 
-mainWindow = sg.Window('CLENV', layout, modal=True, size=(600, 600), element_justification='c')
-setActiveWindow('main')
+main_window = sg.Window('CLENV', layout, modal=True, size=(600, 600), element_justification='c')
+set_active_window('main')
 
 ################################################################################
-######                             Main Loop                               #####
+######                             Main Loop                              ######
 ################################################################################
 
 while True:
-    if windowActivity['main']:
-        mainEvent, mainValues = mainWindow.read()
-        if mainEvent == sg.WIN_CLOSED: # if user closes window or clicks cancel
+    if window_activity['main']:
+        main_event, main_values = main_window.read()
+        if main_event == sg.WIN_CLOSED: # if user closes window or clicks cancel
             break
-        if mainEvent == 'taskExec':
-            mainWindow['mainLayout'].update(visible=False)
-            mainWindow['execLayout'].update(visible=True)
-        if mainEvent == 'config':
-            if not configManager.profile_has_initialized():
-                newConfigLayout =   [
+        if main_event == 'task_exec':
+            main_window['main_layout'].update(visible=False)
+            main_window['exec_layout'].update(visible=True)
+        if main_event == 'config':
+            if not config_manager.profile_has_initialized():
+                new_config_layout =   [
                                         [sg.Text('Please input a profile name:')],
                                         [sg.InputText()],
                                         [sg.Button('Confirm')]
                                     ]
-                newConfigWindow = sg.Window('Profile Creation', newConfigLayout, modal=True)
-                setActiveWindow('newConfig')
+                new_config_window = sg.Window('Profile Creation', new_config_layout, modal=True)
+                set_active_window('new_config')
             else:
-                mainWindow['mainLayout'].update(visible=False)
-                mainWindow['configLayout'].update(visible=True)
+                main_window['main_layout'].update(visible=False)
+                main_window['config_layout'].update(visible=True)
         
         # config controllers
-        if mainEvent == 'configConfirm':
-            option = mainValues['configOptions']
-            optLayout = f'config{option.split(" ")[0]}Layout'
-            activeProfile = configManager.get_active_profile()[0]
-            nonActiveProfiles = configManager.get_non_active_profiles()
-            nonActiveProfileNames = getNonActiveProfileNames(nonActiveProfiles)
-            profileList = getProfileList(activeProfile, nonActiveProfiles)
-            if optLayout == 'configCheckoutLayout':
-                mainWindow['checkoutAP'].update(f'Active Profile: {activeProfile["profile_name"]}')
-                mainWindow['checkoutNAP'].update(values=nonActiveProfileNames)
-            elif optLayout == 'configCreateLayout':
-                mainWindow['newProfileName'].update('')
-            elif optLayout == 'configDeleteLayout':
-                mainWindow['deleteNAP'].update(values=nonActiveProfileNames)
-                mainWindow['deleteNAP'].update('')
-            elif optLayout == 'configListLayout':
-                profileString = getProfileString(getProfileList(activeProfile, nonActiveProfiles))
-                mainWindow['profileList'].update(profileString)
-            elif optLayout == 'configRenameLayout':
-                mainWindow['profileListMenu'].update(values=profileList)
-                mainWindow['profileRename'].update('')
-            elif optLayout == 'configConfigureLayout':
-                mainWindow['profileToConfig'].update(values=profileList)
-                mainWindow['profileToConfig'].update('')
-                mainWindow['multilineConfig'].update('')
-            mainWindow['configLayout'].update(visible=False)
-            mainWindow[optLayout].update(visible=True)
-        if mainEvent == 'configBack':
-            mainWindow['configLayout'].update(visible=False)
-            mainWindow['mainLayout'].update(visible=True)
-        for optBack in ['configCheckoutBack',
-                        'configCreateBack', 
-                        'configDeleteBack', 
-                        'configListBack', 
-                        'configRenameBack', 
-                        'configConfigureBack']:
-            if mainEvent == optBack:
-                mainWindow[f'{optBack.split("Back")[0]}Layout'].update(visible=False)
-                mainWindow['configOptions'].update('')
-                mainWindow['configLayout'].update(visible=True)
-        if mainEvent == 'configCheckoutConfirm':
-            profileName = mainValues['checkoutNAP']
-            if configManager.has_profile(profile_name=profileName):
-                configManager.set_active_profile(profileName)
-                actionSuccessfulWindow = actionSuccess()
-                mainWindow['configCheckoutLayout'].update(visible=False)
-                mainWindow['configLayout'].update(visible=True)
-        if mainEvent == 'configCreateConfirm':
-            newProfileName = mainValues['newProfileName']
-            if configManager.has_profile(profile_name=newProfileName):
-                errorLayout =   [
-                                    [sg.Text('Error: profile already exists', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                errorWindow = sg.Window('Error', errorLayout, modal=True)
-                setActiveWindow('error')
+        if main_event == 'config_confirm':
+            option = main_values['config_options']
+
+            # option_layout is the string key associated with the layout of the option selected in the dropdown menu
+            option_layout = f'config_{option.split(" ")[0].lower()}_layout'
+
+            active_profile = config_manager.get_active_profile()[0]
+            non_active_profiles = config_manager.get_non_active_profiles()
+            non_active_profile_names = get_non_active_profile_names(non_active_profiles)
+            profile_list = get_profile_list(active_profile, non_active_profiles)
+
+            # reset layout whenever selected
+            if option_layout == 'config_checkout_layout':
+                main_window['checkout_active_profile'].update(f'Active Profile: {active_profile["profile_name"]}')
+                main_window['checkout_non_active_profiles'].update(values=non_active_profile_names)
+            elif option_layout == 'config_create_layout':
+                main_window['new_profile_name'].update('')
+            elif option_layout == 'config_delete_layout':
+                main_window['delete_non_active_profiles'].update(values=non_active_profile_names)
+                main_window['delete_non_active_profiles'].update('')
+            elif option_layout == 'config_list_layout':
+                profile_string = get_profile_string(get_profile_list(active_profile, non_active_profiles))
+                main_window['profile_list'].update(profile_string)
+            elif option_layout == 'config_rename_layout':
+                main_window['profile_list_menu'].update(values=profile_list)
+                main_window['profile_rename'].update('')
+            elif option_layout == 'config_configure_layout':
+                main_window['profile_to_config'].update(values=profile_list)
+                main_window['profile_to_config'].update('')
+                main_window['multiline_config'].update('')
+            
+            main_window['config_layout'].update(visible=False)
+            main_window[option_layout].update(visible=True)
+        if main_event == 'config_back':
+            main_window['config_layout'].update(visible=False)
+            main_window['main_layout'].update(visible=True)
+        for option_back in ['config_checkout_back',
+                            'config_create_back', 
+                            'config_delete_back', 
+                            'config_list_back', 
+                            'config_rename_back', 
+                            'config_configure_back']:
+            if main_event == option_back:
+                main_window[f'{option_back.split("back")[0]}layout'].update(visible=False)
+                main_window['config_options'].update('')
+                main_window['config_layout'].update(visible=True)
+        if main_event == 'config_checkout_confirm':
+            profileName = main_values['checkout_non_active_profiles']
+            if config_manager.has_profile(profile_name=profileName):
+                config_manager.set_active_profile(profileName)
+                action_successful_window = action_success()
+                main_window['config_checkout_layout'].update(visible=False)
+                main_window['config_layout'].update(visible=True)
+        if main_event == 'config_create_confirm':
+            new_profile_name = main_values['new_profile_name']
+            if config_manager.has_profile(profile_name=new_profile_name):
+                error_window = create_error_window('profile already exists')
             else:
-                configManager.create_profile(newProfileName)
-                actionSuccessfulWindow = actionSuccess()
-                mainWindow['configCreateLayout'].update(visible=False)
-                mainWindow['configLayout'].update(visible=True)
-        if mainEvent == 'configDeleteConfirm':
-            profileToDelete = mainValues['deleteNAP']
-            configManager.delete_profile(profileToDelete)
-            actionSuccessfulWindow = actionSuccess()
-            mainWindow['configDeleteLayout'].update(visible=False)
-            mainWindow['configLayout'].update(visible=True)
-        if mainEvent == 'configRenameConfirm':
-            profileToRename = mainValues['profileListMenu']
-            profileRename = mainValues['profileRename']
-            if profileRename in profileList:
-                errorLayout =   [
-                                    [sg.Text('Error: profile name is already taken', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                errorWindow = sg.Window('Error', errorLayout, modal=True)
-                setActiveWindow('error')
-            elif profileToRename == '' or profileRename == '':
-                errorLayout =   [
-                                    [sg.Text('Error: one or more options is blank', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                errorWindow = sg.Window('Error', errorLayout, modal=True)
-                setActiveWindow('error')
+                config_manager.create_profile(new_profile_name)
+                action_successful_window = action_success()
+                main_window['config_create_layout'].update(visible=False)
+                main_window['config_layout'].update(visible=True)
+        if main_event == 'config_delete_confirm':
+            profile_to_delete = main_values['delete_non_active_profiles']
+            config_manager.delete_profile(profile_to_delete)
+            action_successful_window = action_success()
+            main_window['config_delete_layout'].update(visible=False)
+            main_window['config_layout'].update(visible=True)
+        if main_event == 'config_rename_confirm':
+            profile_to_rename = main_values['profile_list_menu']
+            profile_rename = main_values['profile_rename']
+            if profile_rename in profile_list:
+                error_window = create_error_window('profile name is already taken')
+            elif profile_to_rename == '' or profile_rename == '':
+                error_window = create_error_window('one or more options is blank')
             else:
-                configManager.rename_profile(profileToRename, profileRename)
-                actionSuccessfulWindow = actionSuccess()
-                mainWindow['configRenameLayout'].update(visible=False)
-                mainWindow['configLayout'].update(visible=True)
-        if mainEvent == 'configConfigureConfirm':
-            profileToConfig = mainValues['profileToConfig']
-            config = mainValues['multilineConfig']
-            configManager.reinitialize_api_config(profileToConfig, config)
-            actionSuccessfulWindow = actionSuccess()
-            mainWindow['configConfigureLayout'].update(visible=False)
-            mainWindow['configLayout'].update(visible=True)
+                config_manager.rename_profile(profile_to_rename, profile_rename)
+                action_successful_window = action_success()
+                main_window['config_rename_layout'].update(visible=False)
+                main_window['config_layout'].update(visible=True)
+        if main_event == 'config_configure_confirm':
+            profile_to_config = main_values['profile_to_config']
+            config = main_values['multiline_config']
+            try:
+                config_manager.reinitialize_api_config(profile_to_config, config)
+                action_successful_window = action_success()
+                main_window['config_configure_layout'].update(visible=False)
+                main_window['config_layout'].update(visible=True)
+            except:
+                error_window = create_error_window('invalid configuration format')
 
         # exec controllers
-        if mainEvent == 'execBack':
-            mainWindow['execLayout'].update(visible=False)
-            mainWindow['mainLayout'].update(visible=True)
-            mainWindow['queueList'].update('')
-            mainWindow['taskTypes'].update('')
-            mainWindow['taskName'].update('')
-            mainWindow['path'].update('./')
-        if mainEvent == 'execConfirm':
-            rawQueueInfo = mainValues['queueList']
-            taskType = mainValues['taskTypes']
-            taskName = mainValues['taskName']
-            path = mainValues['path']
-            if checkBlankOptions(mainValues):
-                errorLayout =   [
-                                    [sg.Text('Error: one or more options is blank', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                errorWindow = sg.Window('Error', errorLayout, modal=True)
-                setActiveWindow('error')
+        if main_event == 'exec_back':
+            main_window['exec_layout'].update(visible=False)
+            main_window['main_layout'].update(visible=True)
+            main_window['queue_list'].update('')
+            main_window['task_types'].update('')
+            main_window['task_name'].update('')
+            main_window['path'].update('./')
+        if main_event == 'exec_confirm':
+            raw_queue_info = main_values['queue_list']
+            task_type = main_values['task_types']
+            task_name = main_values['task_name']
+            path = main_values['path']
+            if check_blank_options(main_values):
+                error_window = create_error_window('one or more options is blank')
             elif not isfile(path):
-                errorLayout =   [
-                                    [sg.Text('Error: must input valid path', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                errorWindow = sg.Window('Error', errorLayout, modal=True)
-                setActiveWindow('error')
+                error_window = create_error_window('must input valid path')
             else:
-                queue, numIdleWorkers, totalWorkers = getQueueInfo(rawQueueInfo)
+                queue, num_idle_workers, total_workers = get_queue_info(raw_queue_info)
                 try:
-                    repo = Repo(".")
+                    dir_path = get_directory_path(path)
+                    repo = Repo(f'{dir_path}')
                 except:
-                    errorLayout =   [
-                                    [sg.Text('Error: no git repository detected \nat specified file directory', key='errorMsg')],
-                                    [sg.Button('Back')]
-                                ]
-                    errorWindow = sg.Window('Error', errorLayout, modal=True)
-                    setActiveWindow('error')
+                    error_window = create_error_window('no git repository detected \nat specified file directory')
                 # Read the git information from current directory
                 current_branch = repo.head.reference.name
                 remote_url = repo.remotes.origin.url
@@ -414,8 +408,8 @@ while True:
                 # Create a task object
                 create_populate = CreateAndPopulate(
                     project_name=project_name,
-                    task_name=taskName,
-                    task_type=taskType,
+                    task_name=task_name,
+                    task_type=task_type,
                     repo=remote_url,
                     branch=current_branch,
                     # commit=args.commit,
@@ -437,45 +431,46 @@ while True:
                 task_id = create_populate.get_id()
                 Task.enqueue(create_populate.task, queue_name=queue)
                 URL = create_populate.task.get_output_log_web_page()
-                mainWindow['execCompleteT1'].update(f"New task created id={task_id}")
-                mainWindow['execCompleteT2'].update(f"Task id={task_id} sent for execution on queue {queue}")
-                mainWindow['execCompleteURL'].update(f'{URL}')
-                mainWindow['execLayout'].update(visible=False)
-                mainWindow['execCompleteLayout'].update(visible=True)
-        if mainEvent == 'execCompleteBack':
-            mainWindow['queueList'].update('')
-            mainWindow['taskTypes'].update('')
-            mainWindow['taskName'].update('')
-            mainWindow['path'].update('./')
-            mainWindow['execCompleteLayout'].update(visible=False)
-            mainWindow['execLayout'].update(visible=True)
+                main_window['exec_complete_text1'].update(f"New task created id={task_id}")
+                main_window['exec_complete_text2'].update(f"Task id={task_id} sent for execution on queue {queue}")
+                main_window['exec_layout'].update(visible=False)
+                main_window['exec_complete_layout'].update(visible=True)
+        if main_event == 'exec_complete_URL':
+            wb.open(URL)
+        if main_event == 'exec_complete_back':
+            main_window['queue_list'].update('')
+            main_window['task_types'].update('')
+            main_window['task_name'].update('')
+            main_window['path'].update('./')
+            main_window['exec_complete_layout'].update(visible=False)
+            main_window['exec_layout'].update(visible=True)
 
     # error controllers
-    if windowActivity['error']:
-        errorEvent, errorValues = errorWindow.read()
-        if errorEvent == 'Back' or errorEvent == sg.WIN_CLOSED:
-            setActiveWindow('main')
-            errorWindow.close()
+    if window_activity['error']:
+        error_event, error_values = error_window.read()
+        if error_event == 'Back' or error_event == sg.WIN_CLOSED:
+            set_active_window('main')
+            error_window.close()
     
-    # newConfig controllers
-    if windowActivity['newConfig']:
-        newConfigEvent, newConfigValues = newConfigWindow.read()
-        if newConfigEvent == 'Confirm':
-            configManager.initialize_profile(f'{newConfigValues[0]}')
-            activeProfiles = configManager.get_active_profile()
-            nonActiveProfiles = configManager.get_non_active_profiles()
-            mainWindow['mainLayout'].update(visible=False)
-            mainWindow['configLayout'].update(visible=True)
-            setActiveWindow('main')
-            newConfigWindow.close()
-        if newConfigEvent == sg.WIN_CLOSED:
-            setActiveWindow('main')
-            newConfigWindow.close()
+    # new_config controllers
+    if window_activity['new_config']:
+        new_config_event, new_config_values = new_config_window.read()
+        if new_config_event == 'Confirm':
+            config_manager.initialize_profile(f'{new_config_values[0]}')
+            active_profiles = config_manager.get_active_profile()
+            non_active_profiles = config_manager.get_non_active_profiles()
+            main_window['main_layout'].update(visible=False)
+            main_window['config_layout'].update(visible=True)
+            set_active_window('main')
+            new_config_window.close()
+        if new_config_event == sg.WIN_CLOSED:
+            set_active_window('main')
+            new_config_window.close()
 
-    if windowActivity['actionSuccessful']:
-        actionSuccessfulEvent, actionSuccessfulValues = actionSuccessfulWindow.read()
-        if actionSuccessfulEvent == sg.WIN_CLOSED:
-            setActiveWindow('main')
-            actionSuccessfulWindow.close()
+    if window_activity['action_successful']:
+        action_successful_event, action_successful_values = action_successful_window.read()
+        if action_successful_event == sg.WIN_CLOSED:
+            set_active_window('main')
+            action_successful_window.close()
 
-mainWindow.close()
+main_window.close()
