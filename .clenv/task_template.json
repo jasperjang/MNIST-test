@@ -1,0 +1,6 @@
+{
+    "selected_queue": "ml-universal-pip",
+    "selected_task_type": "training",
+    "task_name": "test",
+    "script_path": "./clearMLtest2.py"
+}
