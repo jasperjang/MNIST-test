@@ -106,6 +106,12 @@ def get_directory_path(path):
         dir_path += f'/{path_list[i]}'
     return dir_path
 
+# returns script name from the path
+def get_script_from_path(path):
+    path_list = path.split('/')
+    path_list.reverse()
+    return path_list[0]
+
 ################################################################################
 ######                          Initialization                            ######
 ################################################################################
@@ -384,7 +390,7 @@ while True:
             main_window['queue_list'].update('')
             main_window['task_types'].update('')
             main_window['task_name'].update('')
-            main_window['path'].update('./')
+            main_window['path'].update('/')
         if main_event == 'exec_confirm':
             raw_queue_info = main_values['queue_list']
             task_type = main_values['task_types']
@@ -405,6 +411,8 @@ while True:
                 current_branch = repo.head.reference.name
                 remote_url = repo.remotes.origin.url
                 project_name = remote_url.split("/")[-1].split(".")[0]
+                script = get_script_from_path(path)
+                print(path, script)
                 # Create a task object
                 create_populate = CreateAndPopulate(
                     project_name=project_name,
@@ -413,7 +421,7 @@ while True:
                     repo=remote_url,
                     branch=current_branch,
                     # commit=args.commit,
-                    script=path,
+                    script=script,
                     # working_directory=args.cwd,
                     # packages=args.packages,
                     # requirements_file=args.requirements,
