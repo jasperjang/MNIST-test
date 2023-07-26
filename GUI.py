@@ -7,6 +7,7 @@ from git import Repo
 from os.path import isfile
 from config_manager import ConfigManager
 import webbrowser as wb
+import os, json
 
 ################################################################################
 ######                         Helper Functions                           ######
@@ -26,8 +27,14 @@ def get_queue_info(queue_list_item):
     L = queue_list_item.split(' ')
     queue = L[0]
     num_idle_workers = len(L[4])
-    total_workers = int(L[8])
+    total_workers = int(L[-1])
     return queue, num_idle_workers, total_workers
+
+def get_queue_from_name(name, queue_list):
+    for queue in queue_list:
+        split_queue = queue.split(' ')
+        if split_queue[0] == name:
+            return queue
 
 # checks if any values in the dictionary are empty
 def check_blank_options(values):
@@ -41,7 +48,8 @@ def check_blank_options(values):
 window_activity = {'main':False,
                   'error':False,
                   'new_config':False,
-                  'action_successful':False}
+                  'action_successful':False,
+                  'new_template':False}
 
 # sets active window to the inputted window name
 def set_active_window(window_name):
@@ -112,6 +120,42 @@ def get_script_from_path(path):
     path_list.reverse()
     return path_list[0]
 
+# returns a list of template names for the run templates menu
+def get_template_names(current_templates):
+    template_names = []
+    for key in current_templates:
+        template_names.append(key)
+    return template_names
+
+# executes the configuration from the run config
+def exec_config(run_config):
+    run_config['project_name'] = project_name,
+    run_config['task_name'] = task_name,
+    run_config['task_type'] = task_type,
+    run_config['repo'] = remote_url,
+    run_config['branch'] = current_branch,
+    run_config['path'] = path,
+    run_config['script'] = script,
+    run_config['queue'] = queue
+    create_populate = CreateAndPopulate(
+        project_name=project_name,
+        task_name=task_name,
+        task_type=task_type,
+        repo=remote_url,
+        branch=current_branch,
+        script=script,
+        verbose=True,
+    )
+    create_populate.create_task()
+    create_populate.task._set_runtime_properties({"_CLEARML_TASK": True})
+    task_id = create_populate.get_id()
+    Task.enqueue(create_populate.task, queue_name=queue)
+    URL = create_populate.task.get_output_log_web_page()
+    main_window['exec_complete_text1'].update(f"New task created id={task_id}")
+    main_window['exec_complete_text2'].update(f"Task id={task_id} sent for execution on queue {queue}")
+    main_window['exec_layout'].update(visible=False)
+    main_window['exec_complete_layout'].update(visible=True)
+
 ################################################################################
 ######                          Initialization                            ######
 ################################################################################
@@ -152,12 +196,21 @@ profile_list = get_profile_list(active_profile, non_active_profiles)
 profile_string = get_profile_string(profile_list)
 
 # Secondary layouts
-main_layout =    [
+main_layout = [
     [sg.Button('    Task Execution    ', font='Ariel 18', key='task_exec')],
     [sg.Button('Profile Configuration', font='Ariel 18', key='config')]
-                ]
+]
 
-exec_layout =    [
+run_template_layout = [
+    [sg.Text('Select a template or run new:')],
+    [sg.Listbox(['No templates created'], key='template_chosen', size=(60,9))],
+    [sg.Button('Run New', key='run_template_new'),
+     sg.Button('Run Template', key='run_template_template'),
+     sg.Button('Delete Template', key='run_template_delete'),
+     sg.Button('Back', key='run_template_back')]
+]
+
+exec_layout = [
     [sg.Text('Please choose a queue to execute the task')],
     [sg.OptionMenu(queue_list, key='queue_list')],
     [sg.Text('')],
@@ -169,19 +222,20 @@ exec_layout =    [
     [sg.Text('')],
     [sg.Text('Please enter a script path')],
     [sg.InputText('/', key='path')],
+    [sg.Checkbox('Save as template?', key='save_as_template', visible=True)],
     [sg.Button('Confirm', key='exec_confirm'), 
      sg.Button('Back', key='exec_back')]
-                ]
+]
 
-exec_complete_layout =    [
+exec_complete_layout = [
     [sg.Text(f"New task created id={task_id}", key='exec_complete_text1')],
     [sg.Text(f"Task id={task_id} sent for execution on queue {queue}", key='exec_complete_text2')],
     [sg.Text("Execution log at:")],
     [sg.Button('Navigate to project on clearML', key='exec_complete_URL')],
     [sg.Button('Back', key='exec_complete_back')]
-                        ]
+]
 
-config_layout =  [
+config_layout = [
     [sg.Text('Profile Configuration Options:')],
     [sg.OptionMenu(['Checkout a Profile',
                     'Create a Profile',
@@ -191,37 +245,37 @@ config_layout =  [
                     'Configure API Path'], key='config_options')],
     [sg.Button('Confirm', key='config_confirm'), 
      sg.Button('Back', key='config_back')]
-                ]
+]
 
-config_checkout_layout =  [
+config_checkout_layout = [
     [sg.Text('Select a profile to checkout:')],
     [sg.Text(f'Active Profile: {active_profile}', key='checkout_active_profile')],
     [sg.OptionMenu(non_active_profiles, key='checkout_non_active_profiles')],
     [sg.Button('Confirm', key='config_checkout_confirm'), 
      sg.Button('Back', key='config_checkout_back')]
-                        ]
+]
 
-config_create_layout =    [
+config_create_layout = [
     [sg.Text('Enter a new profile name:')],
     [sg.InputText('', key='new_profile_name')],
     [sg.Button('Confirm', key='config_create_confirm'),
      sg.Button('Back', key='config_create_back')]
-                        ]
+]
 
-config_delete_layout =    [
+config_delete_layout = [
     [sg.Text('Select a profile to delete:')],
     [sg.OptionMenu(non_active_profiles, key='delete_non_active_profiles')],
     [sg.Button('Confirm', key='config_delete_confirm'),
      sg.Button('Back', key='config_delete_back')]
-                        ]
+]
 
-config_list_layout =  [
+config_list_layout = [
     [sg.Text('List of profiles:')],
     [sg.Text(profile_string, key='profile_list')],
     [sg.Button('Back', key='config_list_back')]
-                    ]
+]
 
-config_rename_layout =    [
+config_rename_layout = [
     [sg.Text('Select a profile to rename:')],
     [sg.OptionMenu(profile_list, key='profile_list_menu')],
     [sg.Text('')],
@@ -229,7 +283,7 @@ config_rename_layout =    [
     [sg.InputText('', key='profile_rename')],
     [sg.Button('Confirm', key='config_rename_confirm'),
      sg.Button('Back', key='config_rename_back')]
-                        ]
+]
 
 config_configure_layout = [
     [sg.Text('Select a profile to reconfigure:')],
@@ -244,10 +298,10 @@ settings > workspace > create new credentials
     [sg.Multiline('', key='multiline_config', size=(60,9))],
     [sg.Button('Confirm', key='config_configure_confirm'),
      sg.Button('Back', key='config_configure_back')]
-                        ]
+]
 
 # Main layout
-layout =    [
+layout = [
     [sg.Text('')],
     [sg.Image('./logo.png')],
     [sg.Text('')],
@@ -260,8 +314,9 @@ layout =    [
      sg.Column(config_delete_layout, visible=False, key='config_delete_layout'),
      sg.Column(config_list_layout, visible=False, key='config_list_layout'),
      sg.Column(config_rename_layout, visible=False, key='config_rename_layout'),
-     sg.Column(config_configure_layout, visible=False, key='config_configure_layout')]
-            ]
+     sg.Column(config_configure_layout, visible=False, key='config_configure_layout'),
+     sg.Column(run_template_layout, visible=False, key='run_template_layout')]
+]
 
 main_window = sg.Window('CLENV', layout, modal=True, size=(600, 600), element_justification='c')
 set_active_window('main')
@@ -276,15 +331,22 @@ while True:
         if main_event == sg.WIN_CLOSED: # if user closes window or clicks cancel
             break
         if main_event == 'task_exec':
+            if not isfile('./task_templates.json'):
+                with open('task_templates.json', 'w') as f:
+                    json.dump({}, f, indent=4)
+            with open("task_templates.json", "r") as f:
+                current_templates = json.load(f)
+            template_names = get_template_names(current_templates)
+            main_window['template_chosen'].update(values=template_names)
             main_window['main_layout'].update(visible=False)
-            main_window['exec_layout'].update(visible=True)
+            main_window['run_template_layout'].update(visible=True)
         if main_event == 'config':
             if not config_manager.profile_has_initialized():
-                new_config_layout =   [
-                                        [sg.Text('Please input a profile name:')],
-                                        [sg.InputText()],
-                                        [sg.Button('Confirm')]
-                                    ]
+                new_config_layout = [
+                    [sg.Text('Please input a profile name:')],
+                    [sg.InputText()],
+                    [sg.Button('Confirm')]
+                ]
                 new_config_window = sg.Window('Profile Creation', new_config_layout, modal=True)
                 set_active_window('new_config')
             else:
@@ -383,10 +445,50 @@ while True:
             except:
                 error_window = create_error_window('invalid configuration format')
 
+        # run template controllers
+        if main_event == 'run_template_new':
+            main_window['save_as_template'].update(False)
+            main_window['save_as_template'].update(visible=True)
+            main_window['run_template_layout'].update(visible=False)
+            main_window['exec_layout'].update(visible=True)
+        if main_event == 'run_template_template':
+            if main_values['template_chosen'] != {} and main_values['template_chosen'] != []:
+                template_name = main_values['template_chosen'][0]
+                with open("task_templates.json", "r") as f:
+                    current_templates = json.load(f)
+                template = current_templates[template_name]
+                queue_list = get_queue_list()
+                queue = get_queue_from_name(template['queue'], queue_list)
+                main_window['queue_list'].update(queue)
+                main_window['task_types'].update(f'{template["task_type"]}')
+                main_window['task_name'].update(f'{template["task_name"]}')
+                main_window['path'].update(f'{template["path"]}')
+                main_window['save_as_template'].update(False)
+                main_window['save_as_template'].update(visible=False)
+                main_window['run_template_layout'].update(visible=False)
+                main_window['exec_layout'].update(visible=True)
+            else:
+                error_window = create_error_window('no template selected')
+        if main_event == 'run_template_delete':
+            if main_values['template_chosen'] != {} and main_values['template_chosen'] != []:
+                template_name = main_values['template_chosen'][0]
+                with open("task_templates.json", "r") as f:
+                    current_templates = json.load(f)
+                current_templates.pop(template_name)
+                with open("task_templates.json", "w") as f:
+                    json.dump(current_templates, f)
+                template_names = get_template_names(current_templates)
+                main_window['template_chosen'].update(values=template_names)
+            else:
+                error_window = create_error_window('no template selected')
+        if main_event == 'run_template_back':
+            main_window['run_template_layout'].update(visible=False)
+            main_window['main_layout'].update(visible=True)
+
         # exec controllers
         if main_event == 'exec_back':
             main_window['exec_layout'].update(visible=False)
-            main_window['main_layout'].update(visible=True)
+            main_window['run_template_layout'].update(visible=True)
             main_window['queue_list'].update('')
             main_window['task_types'].update('')
             main_window['task_name'].update('')
@@ -412,46 +514,36 @@ while True:
                 remote_url = repo.remotes.origin.url
                 project_name = remote_url.split("/")[-1].split(".")[0]
                 script = get_script_from_path(path)
-                print(path, script)
-                # Create a task object
-                create_populate = CreateAndPopulate(
-                    project_name=project_name,
-                    task_name=task_name,
-                    task_type=task_type,
-                    repo=remote_url,
-                    branch=current_branch,
-                    # commit=args.commit,
-                    script=script,
-                    # working_directory=args.cwd,
-                    # packages=args.packages,
-                    # requirements_file=args.requirements,
-                    # docker=args.docker,
-                    # docker_args=args.docker_args,
-                    # docker_bash_setup_script=bash_setup_script,
-                    # output_uri=args.output_uri,
-                    # base_task_id=args.base_task_id,
-                    # add_task_init_call=not args.skip_task_init,
-                    # raise_on_missing_entries=True,
-                    verbose=True,
-                )
-                create_populate.create_task()
-                create_populate.task._set_runtime_properties({"_CLEARML_TASK": True})
-                task_id = create_populate.get_id()
-                Task.enqueue(create_populate.task, queue_name=queue)
-                URL = create_populate.task.get_output_log_web_page()
-                main_window['exec_complete_text1'].update(f"New task created id={task_id}")
-                main_window['exec_complete_text2'].update(f"Task id={task_id} sent for execution on queue {queue}")
-                main_window['exec_layout'].update(visible=False)
-                main_window['exec_complete_layout'].update(visible=True)
+                run_config = {
+                        'project_name':project_name,
+                        'task_name':task_name,
+                        'task_type':task_type,
+                        'repo':remote_url,
+                        'branch':current_branch,
+                        'path':path,
+                        'script':script,
+                        'queue':queue
+                    }
+                if main_values['save_as_template']:  
+                    new_template_layout = [
+                        [sg.Text('Please input a template name:')],
+                        [sg.InputText()],
+                        [sg.Button('Confirm')]
+                    ]
+                    new_template_window = sg.Window('Template Creation', new_template_layout, modal=True)
+                    set_active_window('new_template')
+                else:
+                    exec_config(run_config)
         if main_event == 'exec_complete_URL':
             wb.open(URL)
         if main_event == 'exec_complete_back':
             main_window['queue_list'].update('')
             main_window['task_types'].update('')
             main_window['task_name'].update('')
-            main_window['path'].update('./')
+            main_window['path'].update('/')
+            main_window['save_as_template'].update(False)
             main_window['exec_complete_layout'].update(visible=False)
-            main_window['exec_layout'].update(visible=True)
+            main_window['run_template_layout'].update(visible=True)
 
     # error controllers
     if window_activity['error']:
@@ -474,6 +566,25 @@ while True:
         if new_config_event == sg.WIN_CLOSED:
             set_active_window('main')
             new_config_window.close()
+
+    # new template controllers
+    if window_activity['new_template']:
+        new_template_event, new_template_values = new_template_window.read()
+        if new_template_event == 'Confirm':
+            template_name = new_template_values[0]
+            with open("task_templates.json", "r") as f:
+                current_templates = json.load(f)
+            current_templates[template_name] = run_config
+            with open("task_templates.json", "w") as f:
+                json.dump(current_templates, f, indent=4)
+            template_names = get_template_names(current_templates)
+            main_window['template_chosen'].update(values=template_names)
+            set_active_window('main')
+            new_template_window.close()
+            exec_config(run_config)
+        if new_template_event == sg.WIN_CLOSED:
+            set_active_window('main')
+            new_template_window.close()
 
     if window_activity['action_successful']:
         action_successful_event, action_successful_values = action_successful_window.read()
